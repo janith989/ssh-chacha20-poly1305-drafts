@@ -5,12 +5,12 @@ title: chacha20-poly1305 encryption algorithm drafts
 
 ## Drafts
 
-- `ssh-chacha20-poly1305@openssh`:
+- [`ssh-chacha20-poly1305@openssh`](ssh-chacha20-poly1305@openssh.html):
 
   The original protocol used by openssh (sadly the upstream
   documentation is broken)
 
-- ssh-chacha20-poly1305
+- [`ssh-chacha20-poly1305`](ssh-chacha20-poly1305.html):
 
   An updated protocol using AEAD_CHACHA20_POLY1305 from RFC7539.
 
@@ -75,6 +75,7 @@ and not just for one cipher.
 Until this happens I propose defining "chacha20-poly1305" as either the
 existing "chacha20-poly1305@openssh.com" or as a slightly modified
 variant:
+
 - using the RFC7539 Poly1305 data construction
 - using the Chacha20 variant from RFC7539
 - encrypt the packet length with otherwise discarded bytes from the
