@@ -1,4 +1,7 @@
-# chacha20-poly1305 encryption algorithm drafts
+---
+layout: page
+title: chacha20-poly1305 encryption algorithm drafts
+---
 
 ## Drafts
 
