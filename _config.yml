@@ -1,0 +1,5 @@
+baseurl: "/ssh-chacha20-poly1305-drafts"
+url: "https://http://rus-cert.github.io"
+
+# Build settings
+markdown: kramdown
