@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE rfc SYSTEM 'rfc2629.dtd' []>
+<rfc ipr="trust200902" category="info" docName="draft-josefsson-ssh-chacha20-poly1305-openssh-00">
+<?rfc toc="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc private=""?>
+<?rfc topblock="yes"?>
+<?rfc comments="no"?>
+<front>
+<title abbrev="SSH chacha20-poly1305">The chacha20-poly1305 authenticated encryption cipher</title>
+
+<author initials="D." surname="Miller" fullname="Damien Miller">
+<organization>OpenSSH</organization>
+<address>
+<postal>
+<street></street>
+<city></city>
+<code></code>
+<country></country>
+<region></region>
+</postal>
+<phone></phone>
+<email></email>
+<uri></uri>
+</address>
+</author>
+<author initials="S." surname="Josefsson" fullname="Simon Josefsson">
+<organization>SJD AB</organization>
+<address>
+<postal>
+<street></street>
+<city></city>
+<code></code>
+<country></country>
+<region></region>
+</postal>
+<phone></phone>
+<email>simon@josefsson.org</email>
+<uri></uri>
+</address>
+</author>
+<author initials="S." surname="Bühler" fullname="Stefan Bühler">
+<organization>RUS-CERT</organization>
+<address>
+<postal>
+<street></street>
+<city></city>
+<code></code>
+<country></country>
+<region></region>
+</postal>
+<phone></phone>
+<email>buehler@cert.uni-stuttgart.de</email>
+<uri></uri>
+</address>
+</author>
+<date year="2016" month="April" day="18"/>
+
+<area>Security</area>
+<workgroup>Secure Shell (Concluded WG)</workgroup>
+<keyword>Internet-Draft</keyword>
+
+
+<abstract>
+<t>This document describes the <spanx style="verb">chacha20-poly1305</spanx> authenticated encryption
+cipher for use in SSH based on AEAD_CHACHA20_POLY1305 described in
+<xref target="RFC7539"/>.
+</t>
+</abstract>
+
+</front>
+
+<middle>
+
+<section anchor="introduction" title="Introduction">
+<t><spanx style="verb">AEAD_CHACHA20_POLY1305</spanx> from <xref target="RFC7539"/> is an &quot;Authenticated
+Encryption with Associated Data&quot; (AEAD) cipher.  It takes a 256-bit key
+and a 96-bit nonce, and is based on the ChaCha20 and Poly1305 primitives
+both designed by Daniel Bernstein.
+</t>
+<t>The key words &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;,
+&quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT RECOMMENDED&quot;, &quot;MAY&quot;, and
+&quot;OPTIONAL&quot; in this document are to be interpreted as described in
+<xref target="RFC2119"/>.
+</t>
+</section>
+
+<section anchor="negotiation" title="Negotiation">
+<t>The <spanx style="verb">chacha20-poly1305</spanx> encryption algorithm offers both encryption and
+authentication.  As such, no separate MAC is required.  If the
+<spanx style="verb">chacha20-poly1305</spanx> algorithm is selected in key exchange, the offered
+MAC algorithms MUST be ignored and no MAC is required to be present.
+</t>
+</section>
+
+<section anchor="detailed-construction" title="Detailed Construction">
+<t>The <spanx style="verb">chacha20-poly1305</spanx> cipher requires 256 bits (32 bytes) of key
+material as output from the SSH key exchange.
+</t>
+<t><spanx style="verb">chacha20-poly1305</spanx> does not require any &quot;Initial IV&quot; or &quot;Integrity&quot; key
+material.
+</t>
+<t>The nonce is constructed by appending the big-endian encoding of the
+32-bit sequence number to 8 zero bytes.
+</t>
+<t>Section 2.6 in <xref target="RFC7539"/> describes how the Poly1305 key is generated
+from the output of the first (counter = 0) ChaCha20 block for a given
+packet.  The second half of this block (&quot;The other 256 bits&quot;) are
+discarded usually.  The next 32 bits of those otherwise discarded 256
+bits are used as <spanx style="verb">packet_length_encryption</spanx>.
+</t>
+<t>The <spanx style="verb">packet_length</spanx> is encrypted by performing XOR of the <spanx style="verb">packet_length</spanx>
+with the <spanx style="verb">packet_length_encryption</spanx>.
+</t>
+<t>The <spanx style="verb">chacha20-poly1305</spanx> encryption algorithm also serves as the MAC
+algorithm, and uses the 128-bit tag from Poly1305 as MAC.
+</t>
+
+<section anchor="additional-authenticated-data" title="Additional Authenticated Data">
+<t>The additional authenticated data (AAD) consists of the encrypted packet
+length.
+</t>
+</section>
+</section>
+
+<section anchor="packet-handling" title="Packet Handling">
+
+<section anchor="padding" title="Padding">
+<t>With AEAD algorithms the <spanx style="verb">packet_length</spanx> field is usually not encrypted
+using the normal AEAD algorithm, as it needs to be decrypted without
+knowing how long the packet is going to be.
+</t>
+<t>While the <spanx style="verb">packet_length</spanx> can be encrypted in a different way, the
+packet content must be padded without the <spanx style="verb">packet_length</spanx> field to a
+multiple of the block size.
+</t>
+<t>As <spanx style="verb">chacha20-poly1305</spanx> is a stream cipher and has no block size
+requirements the minimum SSH alignment requirement of 8 bytes is used
+instead (see section 6 of <xref target="RFC4253"/>).
+</t>
+<t>The minimum size of a packet (including the <spanx style="verb">packet_length</spanx> field but
+not the mac) is 12 bytes (instead of the 16 bytes): the content is
+padded to at least 8 bytes plus 4 bytes for the <spanx style="verb">packet_length</spanx> field.
+</t>
+</section>
+
+<section anchor="receiving-packets" title="Receiving packets">
+<t>When receiving a packet the length must be decrypted first.  When 4
+bytes of ciphertext length have been received, they need to be decrypted
+by applying XOR with the <spanx style="verb">packet_length_encryption</spanx> key for this packet.
+</t>
+<t>The receiver SHOULD verify the packet length (minimum length is 8 bytes,
+must be a multiple of 8 and must not exceed maximum expected packet
+length).
+</t>
+<t>Once the entire packet content of further <spanx style="verb">packet_length</spanx> bytes and the
+mac has been received, the packet is decrypted as described in
+<xref target="RFC7539"/>.
+</t>
+</section>
+
+<section anchor="sending-packets" title="Sending packets">
+<t>To send a packet the <spanx style="verb">packet_length</spanx> is encrypted by applying XOR with
+the <spanx style="verb">packet_length_encryption</spanx> key for this packet.  Then the packet
+content is encrypted as described in <xref target="RFC7539"/> and the Poly1305 tag is
+appended as <spanx style="verb">mac</spanx>.
+</t>
+</section>
+</section>
+
+<section anchor="rekeying" title="Rekeying">
+<t><spanx style="verb">AEAD_CHACHA20_POLY1305</spanx> must never reuse a {key, nonce} combination for
+encryption.  The nonce wraps around every 2^32 packets, and therefore
+the same key MUST NOT be used for more than 2^32 packets.  The SSH
+Transport protocol <xref target="RFC4253"/> recommends a far more conservative
+rekeying every 1GB of data sent or received.  If this recommendation is
+followed, then <spanx style="verb">chacha20-poly1305</spanx> requires no special handling in this
+area.
+</t>
+</section>
+
+<section anchor="differences-to-rfc-7539" title="Differences to RFC 7539">
+<t>In section 2.3 of <xref target="RFC7539"/> a different ChaCha20 construction is
+described; it uses a 12-byte nonce and a 4-byte counter.  By removing
+the last 4 bytes of the 8-byte counter (which are always zero in ssh)
+and prefixing 4 zero bytes to the 8-byte nonce one can get a <xref target="RFC7539"/>
+compatible representation as 4-byte counter and 12-byte nonce.
+</t>
+<t>The data Poly1305 is applied to in section 2.8 of <xref target="RFC7539"/> differs
+too: it adds padding and encodes the length of ciphertext and AAD.
+</t>
+</section>
+
+<section anchor="security-considerations" title="Security considerations">
+<t>An attacker can flip single bits in the <spanx style="verb">packet_length</spanx> field by
+flipping them in the encrypted data.  This is also true for other
+encryption algorithms like &quot;<spanx style="verb">*-ctr</spanx>&quot; from <xref target="RFC4344"/> based on XOR.
+</t>
+<t>For further details on the Chacha20 and Poly1305 combination see section
+4 of <xref target="RFC7539"/>.
+</t>
+</section>
+
+<section anchor="iana-considerations" title="IANA considerations">
+<t>Consistent with Section 4.6 of <xref target="RFC4250"/>, this document registers the
+name &quot;<spanx style="verb">chacha20-poly1305</spanx>&quot; in the Encryption Algorithm Names registry
+for the encryption algorithm defined in this document.
+</t>
+</section>
+
+<section anchor="acknowledgements" title="Acknowledgements">
+<t>The designed is based on <spanx style="verb">chacha20-poly1305@openssh.com</spanx> and
+<xref target="RFC7539"/>.
+</t>
+</section>
+
+</middle>
+<back>
+<references title="Normative References">
+<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"?>
+<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4250.xml"?>
+<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4253.xml"?>
+<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7539.xml"?>
+</references>
+<references title="Informative References">
+<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4344.xml"?>
+</references>
+
+<section anchor="copying-conditions" title="Copying conditions">
+<t>Regarding this entire document or any portion of it, the authors make no
+guarantees and are not responsible for any damage resulting from its
+use.  The authors grant irrevocable permission to anyone to use, modify,
+and distribute it in any way that does not diminish the rights of anyone
+else to use, modify, and distribute it, provided that redistributed
+derivative works do not contain misleading author or version
+information.  Derivative works need not be licensed under similar terms.
+</t>
+</section>
+
+</back>
+</rfc>
