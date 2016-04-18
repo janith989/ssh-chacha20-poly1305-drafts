@@ -82,4 +82,4 @@ variant:
   first Chacha20 block, i.e. only a single Chacha20 instance
 - pad the nonce to 12 bytes with zeroes on the left side, so one can
   simply reuse the original Poly1305 implementation with a 8-byte nonce.
-- I do have an openssh patch for this :)
+- [openssh patch](https://github.com/rus-cert/openssh-portable/tree/feature-chacha20-poly1305)
