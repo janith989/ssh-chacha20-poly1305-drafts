@@ -159,14 +159,22 @@ handling in this area.
 
 # Differences to RFC 7539
 
-In section 2.3 of [@RFC7539] a different ChaCha20 construction is
-described; it uses a 12-byte nonce and a 4-byte counter.  By removing
-the last 4 bytes of the 8-byte counter (which are always zero in ssh)
-and prefixing 4 zero bytes to the 8-byte nonce one can get a [@RFC7539]
-compatible representation as 4-byte counter and 12-byte nonce.
+Chacha20 as described in [@RFC7539] differs from [ChaCha] in the size of
+the counter and the nonce. Both algorithms concatenate counter and nonce
+to form a 16-byte input for the ChaCha20 function, but [@RFC7539] uses a
+4-byte counter and a 12-byte nonce, and [ChaCha] uses a 8-byte counter
+and a 8-byte nonce.
+
+The counter is a little endian integer which never reaches 2^32^ in the
+SSH protocol, and the nonce is the big endian encoding of the 32-bit
+sequence number. Therefore no matter which Chacha specification is
+chosen the input looks like this:
+
+    <little endian 32-bit counter> || 00 00 00 00 00 00 00 00 || <big endian 32-bit sequence number>
 
 The data Poly1305 is applied to in section 2.8 of [@RFC7539] differs
-too: it adds padding and encodes the length of ciphertext and AAD.
+too: [@RFC7539] adds padding and encodes the length of ciphertext and
+AAD.
 
 # Security considerations
 
